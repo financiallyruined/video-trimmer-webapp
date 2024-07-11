@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Video Trimmer</title>
+    <style>
+      :root {
+        --primary-color: #4a90e2;
+        --secondary-color: #f5a623;
+        --background-color: #f8f9fa;
+        --text-color: #333;
+        --error-color: #e74c3c;
+        --success-color: #2ecc71;
+      }
+
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background-color: var(--background-color);
+        color: var(--text-color);
+        line-height: 1.6;
+        margin: 0;
+        padding: 20px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+      }
+
+      .container {
+        background-color: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        padding: 2rem;
+        width: 100%;
+        max-width: 600px;
+      }
+
+      h1 {
+        color: var(--primary-color);
+        text-align: center;
+        margin-bottom: 1.5rem;
+      }
+
+      #trim-form {
+        display: grid;
+        gap: 1.5rem;
+      }
+
+      .input-group {
+        display: grid;
+        gap: 0.5rem;
+      }
+
+      label {
+        font-weight: 600;
+        color: var(--text-color);
+      }
+
+      select,
+      input[type="text"],
+      button {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 1rem;
+        transition: border-color 0.3s ease;
+      }
+
+      select:focus,
+      input[type="text"]:focus {
+        outline: none;
+        border-color: var(--primary-color);
+      }
+
+      button {
+        background-color: var(--primary-color);
+        color: white;
+        border: none;
+        cursor: pointer;
+        font-weight: 600;
+        transition: background-color 0.3s ease;
+      }
+
+      button:hover {
+        background-color: #3a7bd5;
+      }
+
+      #time-segments {
+        display: grid;
+        gap: 1rem;
+      }
+
+      .time-segment {
+        display: grid;
+        grid-template-columns: 1fr 1fr auto;
+        gap: 0.5rem;
+        align-items: center;
+        background-color: #f1f3f5;
+        padding: 1rem;
+        border-radius: 4px;
+        transition: all 0.3s ease;
+      }
+
+      .time-segment:hover {
+        background-color: #e9ecef;
+      }
+
+      .remove-segment {
+        background-color: var(--error-color);
+        color: white;
+        border: none;
+        padding: 0.5rem;
+        cursor: pointer;
+        border-radius: 4px;
+        font-size: 1.2rem;
+        line-height: 1;
+        transition: background-color 0.3s ease;
+      }
+
+      .remove-segment:hover {
+        background-color: #c0392b;
+      }
+
+      #add-segment {
+        background-color: var(--secondary-color);
+      }
+
+      #add-segment:hover {
+        background-color: #e67e22;
+      }
+
+      .error {
+        color: var(--error-color);
+        text-align: center;
+        margin-top: 1rem;
+      }
+
+      #progress-container {
+        display: none;
+        margin-top: 2rem;
+      }
+
+      #progress-bar {
+        width: 100%;
+        height: 22px;
+        background-color: #f3f3f3;
+        border-radius: 3px;
+        overflow: hidden;
+        position: relative;
+      }
+
+      #progress-bar-fill {
+        width: 0;
+        height: 100%;
+        background-color: var(--primary-color);
+        transition: width 0.5s ease-in-out;
+        position: absolute;
+        top: 0;
+        left: 0;
+      }
+
+      #progress-bar-fill.striped {
+        background-image: linear-gradient(45deg, rgba(255, 255, 255, 0.15) 25%, transparent 25%, transparent 50%, rgba(255, 255, 255, 0.15) 50%, rgba(255, 255, 255, 0.15) 75%, transparent 75%, transparent);
+        background-size: 40px 40px;
+        animation: progress-stripes 1s linear infinite;
+      }
+
+      @keyframes progress-stripes {
+        0% {
+          background-position: 40px 0;
+        }
+        100% {
+          background-position: 0 0;
+        }
+      }
+      #progress-text {
+        text-align: center;
+        margin-top: 0.5rem;
+        font-weight: 600;
+      }
+
+      #download-link {
+        display: none;
+        margin-top: 2rem;
+        text-align: center;
+      }
+
+      #download-button {
+        display: inline-block;
+        padding: 0.75rem 1.5rem;
+        background-color: var(--success-color);
+        color: white;
+        text-decoration: none;
+        border-radius: 4px;
+        font-weight: 600;
+        transition: background-color 0.3s ease;
+      }
+
+      #download-button:hover {
+        background-color: #27ae60;
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .fade-in {
+        animation: fadeIn 0.3s ease;
+      }
+
+      .directory-browser {
+        max-height: 300px;
+        overflow-y: auto;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        padding: 10px;
+        margin-bottom: 1rem;
+      }
+
+      .directory-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        cursor: pointer;
+        padding: 5px;
+        margin: 2px 0;
+        transition: background-color 0.2s;
+      }
+
+      .directory-item:hover {
+        background-color: #f0f0f0;
+      }
+
+      .directory-item.file {
+        cursor: default;
+      }
+
+      .directory-item::before {
+        content: "📁";
+        margin-right: 5px;
+      }
+
+      .directory-item.file::before {
+        content: "📄";
+      }
+
+      .directory-item.selected {
+        background-color: #e0e0ff;
+        font-weight: bold;
+      }
+
+      #selected-file-display {
+        margin-top: 10px;
+        font-weight: bold;
+        color: var(--primary-color);
+      }
+
+      .user-info {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+        padding: 0.5rem;
+        background-color: var(--background-color);
+        border-radius: 4px;
+      }
+
+      .user-info a {
+        color: var(--primary-color);
+        text-decoration: none;
+        margin-left: 1rem;
+        transition: color 0.3s ease;
+      }
+
+      .user-info a:hover {
+        color: var(--secondary-color);
+      }
+
+      .welcome-message {
+        font-weight: 600;
+      }
+
+      .directory-item-name {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        flex-grow: 1;
+        min-width: 0; 
+      }
+
+      .directory-item-content {
+        display: flex;
+        align-items: center;
+        flex-grow: 1;
+        min-width: 0; 
+      }
+
+      .file-size {
+        font-size: 0.8em;
+        color: #666;
+        margin-left: 10px;
+        flex-shrink: 0;
+      }
+
+      #trimmed-video-info {
+        margin-top: 1rem;
+        font-weight: bold;
+        color: var(--success-color);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="user-info">
+        <span class="welcome-message">Welcome, <span id="username">User</span>!</span>
+        <div>
+          <a href="/my_videos">My Videos</a>
+          <a href="/logout">Logout</a>
+        </div>
+      </div>
+      <h1>Advanced Video Trimmer</h1>
+      <form id="trim-form">
+        <div class="input-group">
+          <label for="directory-browser">Select video file:</label>
+          <div id="directory-browser" class="directory-browser"></div>
+          <input type="hidden" name="file" id="selected-file" />
+          <div id="selected-file-display"></div>
+        </div>
+        <div class="input-group">
+          <label for="custom-path">Or enter custom video path:</label>
+          <input type="text" name="custom_path" id="custom-path" placeholder="/path/to/your/video.mp4" />
+        </div>
+
+        <div id="time-segments">
+          <div class="time-segment fade-in">
+            <input type="text" name="start_time_0" class="start-time" pattern="^(?:(?:([0-9]{1,2}):)?([0-5]?[0-9]):)?([0-5]?[0-9])$" placeholder="Start time (HH:MM:SS)" required />
+            <input type="text" name="end_time_0" class="end-time" pattern="^(?:(?:([0-9]{1,2}):)?([0-5]?[0-9]):)?([0-5]?[0-9])$" placeholder="End time (HH:MM:SS)" required />
+            <button type="button" class="remove-segment" onclick="removeSegment(this)">×</button>
+          </div>
+        </div>
+
+        <button type="button" id="add-segment">Add Time Segment</button>
+
+        <button type="submit">Trim Video</button>
+      </form>
+      <p id="error-message" class="error"></p>
+
+      <div id="progress-container">
+        <h2>Trimming Progress</h2>
+        <div id="progress-bar">
+          <span id="progress-bar-fill"></span>
+        </div>
+        <p id="progress-text">0%</p>
+      </div>
+
+      <div id="download-link">
+        <a href="#" id="download-button">Download Trimmed Video</a>
+        <div id="trimmed-video-info"></div>
+      </div>
+    </div>
+
+    <script>
+      const trimForm = document.getElementById("trim-form");
+      const errorMessage = document.getElementById("error-message");
+      const progressContainer = document.getElementById("progress-container");
+      const progressBarFill = document.getElementById("progress-bar-fill");
+      const progressText = document.getElementById("progress-text");
+      const downloadLink = document.getElementById("download-link");
+      const downloadButton = document.getElementById("download-button");
+      const directoryBrowser = document.getElementById("directory-browser");
+      const selectedFile = document.getElementById("selected-file");
+      const selectedFileDisplay = document.getElementById("selected-file-display");
+      const customPath = document.getElementById("custom-path");
+      const addSegmentButton = document.getElementById("add-segment");
+      const timeSegmentsContainer = document.getElementById("time-segments");
+
+      let segmentCount = 1;
+
+      let currentPath = "";
+
+      function formatFileSize(bytes) {
+        if (bytes === 0) return "0 Bytes";
+        const k = 1024;
+        const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+      }
+
+      function truncateFileName(fileName, maxLength = 40) {
+        if (fileName.length <= maxLength) return fileName;
+        const ext = fileName.split(".").pop();
+        const nameWithoutExt = fileName.slice(0, -(ext.length + 1));
+        return nameWithoutExt.slice(0, maxLength - 3 - ext.length) + "..." + ext;
+      }
+
+      function addSegment() {
+        const newSegment = document.createElement("div");
+        newSegment.className = "time-segment fade-in";
+        newSegment.innerHTML = `
+                <input type="text" name="start_time_${segmentCount}" class="start-time" pattern="^(?:(?:([0-9]{1,2}):)?([0-5]?[0-9]):)?([0-5]?[0-9])$" placeholder="Start time (HH:MM:SS)" required>
+                <input type="text" name="end_time_${segmentCount}" class="end-time" pattern="^(?:(?:([0-9]{1,2}):)?([0-5]?[0-9]):)?([0-5]?[0-9])$" placeholder="End time (HH:MM:SS)" required>
+                <button type="button" class="remove-segment" onclick="removeSegment(this)">×</button>
+            `;
+        timeSegmentsContainer.appendChild(newSegment);
+        segmentCount++;
+      }
+
+      function removeSegment(button) {
+        if (timeSegmentsContainer.children.length > 1) {
+          button.parentElement.remove();
+        } else {
+          alert("You must have at least one time segment.");
+        }
+      }
+
+      addSegmentButton.addEventListener("click", addSegment);
+
+      function renderDirectoryStructure(items) {
+        directoryBrowser.innerHTML = "";
+        if (currentPath) {
+          const parentItem = document.createElement("div");
+          parentItem.classList.add("directory-item");
+          parentItem.innerHTML = `
+      <span class="directory-item-name">.. (Parent Directory)</span>
+    `;
+          parentItem.onclick = () => loadDirectory(currentPath.split("/").slice(0, -1).join("/"));
+          directoryBrowser.appendChild(parentItem);
+        }
+        items.forEach((item) => {
+          const itemElement = document.createElement("div");
+          itemElement.classList.add("directory-item");
+          if (item.type === "file") {
+            itemElement.classList.add("file");
+            const truncatedName = truncateFileName(item.name);
+            itemElement.innerHTML = `
+        <span class="directory-item-name" title="${item.name}">${truncatedName}</span>
+        <span class="file-size">${formatFileSize(item.size)}</span>
+      `;
+            itemElement.onclick = () => selectFile(item.path, item.name, itemElement);
+          } else {
+            itemElement.innerHTML = `
+        <span class="directory-item-name">${item.name}</span>
+      `;
+            itemElement.onclick = () => loadDirectory(item.path);
+          }
+          directoryBrowser.appendChild(itemElement);
+        });
+      }
+
+      function selectFile(path, name, element) {
+        document.querySelectorAll(".directory-item").forEach((item) => {
+          item.classList.remove("selected");
+        });
+        element.classList.add("selected");
+        selectedFile.value = path;
+        selectedFileDisplay.textContent = `Selected: ${name}`;
+        customPath.value = "";
+      }
+
+      function loadDirectory(path) {
+        currentPath = path;
+        fetch("/list_directory", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ path: path }),
+        })
+          .then((response) => response.json())
+          .then((data) => {
+            renderDirectoryStructure(data);
+          })
+          .catch((error) => {
+            console.error("Error:", error);
+            errorMessage.textContent = "Failed to load directory";
+          });
+      }
+
+      function selectFile(path, name, element) {
+        document.querySelectorAll(".directory-item").forEach((item) => {
+          item.classList.remove("selected");
+        });
+        element.classList.add("selected");
+        selectedFile.value = path;
+        selectedFileDisplay.textContent = `Selected: ${name}`;
+        customPath.value = "";
+      }
+
+    
+      loadDirectory("");
+
+      customPath.addEventListener("input", () => {
+        if (customPath.value) {
+          selectedFile.value = "";
+          selectedFileDisplay.textContent = "";
+          document.querySelectorAll(".directory-item").forEach((item) => {
+            item.classList.remove("selected");
+          });
+        }
+      });
+
+      trimForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        errorMessage.textContent = "";
+        progressContainer.style.display = "none";
+        downloadLink.style.display = "none";
+
+        progressBarFill.style.width = "0%";
+        progressBarFill.classList.add("progress-striped");
+        progressText.textContent = "0%";
+        progressContainer.style.display = "block";
+
+        const formData = new FormData(trimForm);
+
+
+        const timeSegments = [];
+        const startInputs = trimForm.querySelectorAll('input[name^="start_time"]');
+        const endInputs = trimForm.querySelectorAll('input[name^="end_time"]');
+
+        for (let i = 0; i < startInputs.length; i++) {
+          timeSegments.push({
+            start_time: startInputs[i].value,
+            end_time: endInputs[i].value,
+          });
+        }
+
+
+        formData.append("time_segments", JSON.stringify(timeSegments));
+
+        try {
+          const response = await fetch("/trim", {
+            method: "POST",
+            body: formData,
+          });
+          const data = await response.json();
+
+          if (response.ok) {
+            startProgressMonitoring(data.job_id);
+          } else {
+            errorMessage.textContent = data.error || "An error occurred";
+            progressContainer.style.display = "none";
+          }
+        } catch (error) {
+          errorMessage.textContent = "An error occurred";
+          console.error("Error:", error);
+          progressContainer.style.display = "none";
+        }
+      });
+
+      function startProgressMonitoring(jobId) {
+        progressContainer.style.display = "block";
+        const eventSource = new EventSource(`/progress/${jobId}`);
+        let lastProgress = 0;
+
+        // Reset progress bar
+        progressBarFill.style.width = "0%";
+        progressBarFill.classList.add("striped");
+        progressText.textContent = "0%";
+
+        function updateProgressBar(progress) {
+          progressBarFill.style.width = `${progress}%`;
+          progressText.textContent = `${Math.round(progress)}%`;
+        }
+
+        function animateProgress(start, end, duration) {
+          const startTime = performance.now();
+
+          function step(currentTime) {
+            const elapsedTime = currentTime - startTime;
+            if (elapsedTime < duration) {
+              const progress = start + (end - start) * (elapsedTime / duration);
+              updateProgressBar(progress);
+              requestAnimationFrame(step);
+            } else {
+              updateProgressBar(end);
+            }
+          }
+
+          requestAnimationFrame(step);
+        }
+
+        eventSource.onmessage = function (event) {
+          const data = JSON.parse(event.data);
+          const newProgress = Math.max(lastProgress, Math.min(data.progress, 100));
+
+          if (newProgress > lastProgress) {
+            animateProgress(lastProgress, newProgress, 500);
+            lastProgress = newProgress;
+          }
+
+          if (newProgress === 100 || newProgress === -1) {
+            eventSource.close();
+            if (newProgress === 100) {
+              downloadButton.href = `/download/${jobId}`;
+              downloadLink.style.display = "block";
+              progressBarFill.classList.remove("striped");
+
+              // Fetch trimmed video info
+              fetch(`/video_info/${jobId}`)
+                .then((response) => response.json())
+                .then((data) => {
+                  const trimmedVideoInfo = document.getElementById("trimmed-video-info");
+                  trimmedVideoInfo.textContent = `Trimmed video size: ${formatFileSize(data.size)}`;
+                })
+                .catch((error) => {
+                  console.error("Error fetching video info:", error);
+                });
+            } else {
+              errorMessage.textContent = "An error occurred while trimming the video";
+              progressContainer.style.display = "none";
+            }
+          }
+        };
+
+        eventSource.onerror = function (event) {
+          console.error("EventSource failed:", event);
+          eventSource.close();
+          errorMessage.textContent = "An error occurred while trimming the video";
+          progressContainer.style.display = "none";
+          progressBarFill.classList.remove("striped");
+        };
+      }
+
+
+      trimForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        errorMessage.textContent = "";
+        progressContainer.style.display = "none";
+        downloadLink.style.display = "none";
+
+  
+        progressBarFill.style.width = "0%";
+        progressBarFill.classList.add("striped");
+        progressText.textContent = "0%";
+        progressContainer.style.display = "block";
+
+        const formData = new FormData(trimForm);
+
+   
+        const timeSegments = [];
+        const startInputs = trimForm.querySelectorAll('input[name^="start_time"]');
+        const endInputs = trimForm.querySelectorAll('input[name^="end_time"]');
+
+        for (let i = 0; i < startInputs.length; i++) {
+          timeSegments.push({
+            start_time: startInputs[i].value,
+            end_time: endInputs[i].value,
+          });
+        }
+
+
+        formData.append("time_segments", JSON.stringify(timeSegments));
+
+        try {
+          const response = await fetch("/trim", {
+            method: "POST",
+            body: formData,
+          });
+          const data = await response.json();
+
+          if (response.ok) {
+            startProgressMonitoring(data.job_id);
+          } else {
+            errorMessage.textContent = data.error || "An error occurred";
+            progressContainer.style.display = "none";
+            progressBarFill.classList.remove("striped");
+          }
+        } catch (error) {
+          errorMessage.textContent = "An error occurred";
+          console.error("Error:", error);
+          progressContainer.style.display = "none";
+          progressBarFill.classList.remove("striped");
+        }
+      });
+    </script>
+  </body>
+</html>
