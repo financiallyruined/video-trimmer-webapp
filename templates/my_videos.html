@@ -4,291 +4,48 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>My Videos - Advanced Video Trimmer</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='auth_styles.css') }}" />
-    <style>
-      .search-sort-container {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 1rem;
-      }
-      .search-input {
-        padding: 0.5rem;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        font-size: 1rem;
-      }
-      .sort-select {
-        padding: 0.5rem;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        font-size: 1rem;
-      }
-      .pagination {
-        display: flex;
-        justify-content: center;
-        margin-top: 1rem;
-      }
-      .pagination button {
-        margin: 0 0.25rem;
-        padding: 0.5rem 1rem;
-      }
-      .action-buttons {
-        display: flex;
-        gap: 0.5rem;
-      }
-
-      .delete-button {
-        display: inline-block;
-        padding: 0.5rem 1rem;
-        background-color: var(--error-color);
-        color: white;
-        text-decoration: none;
-        border-radius: 4px;
-        font-weight: 600;
-        transition: background-color 0.3s ease;
-        cursor: pointer;
-      }
-
-      .delete-button:hover {
-        background-color: #c0392b;
-      }
-
-      .pagination {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            margin-top: 1rem;
-        }
-        .pagination button {
-            margin: 0 0.25rem;
-            padding: 0.5rem 1rem;
-            width: auto;  
-        }
-        #page-info {
-            margin: 0 1rem;
-        }
-        .sortable {
-            cursor: pointer;
-        }
-        .sortable:hover {
-            background-color: #f0f0f0;
-        }
-        .sortable::after {
-            content: '\25B2';
-            margin-left: 5px;
-            visibility: hidden;
-        }
-        .sortable.asc::after {
-            visibility: visible;
-        }
-        .sortable.desc::after {
-            content: '\25BC'; 
-            visibility: visible;
-        }
-
-        #no-videos-message {
-            text-align: center;
-            font-size: 1.2rem;
-            color: #666;
-            margin-top: 2rem;
-            display: none;
-        }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}" />
   </head>
   <body>
     <div class="container my-videos-container" id="video-container" data-videos="{{ videos_json|tojson|forceescape }}">
-        <div class="user-info">
-            <span class="welcome-message">Welcome, {{ current_user.username }}!</span>
-            <div>
-                <a href="{{ url_for('index') }}">Home</a>
-                <a href="{{ url_for('logout') }}">Logout</a>
-            </div>
+      <div class="user-info">
+        <span class="welcome-message">Welcome, {{ current_user.username }}!</span>
+        <div>
+          <a href="{{ url_for('index') }}">Home</a>
+          <a href="{{ url_for('logout') }}">Logout</a>
         </div>
-        <h1>My Videos</h1>
-        <div class="search-sort-container">
-            <input type="text" id="search-input" class="search-input" placeholder="Search videos...">
-            <select id="sort-select" class="sort-select">
-                <option value="filename-asc">Name (A-Z)</option>
-                <option value="filename-desc">Name (Z-A)</option>
-                <option value="date_added-desc">Date (Newest first)</option>
-                <option value="date_added-asc">Date (Oldest first)</option>
-                <option value="file_size-desc">Size (Largest first)</option>
-                <option value="file_size-asc">Size (Smallest first)</option>
-            </select>
-        </div>
-        <table class="video-table">
-            <thead>
-                <tr>
-                    <th class="sortable" data-sort="filename">File Name</th>
-                    <th class="sortable" data-sort="date_added">Date Added</th>
-                    <th class="sortable" data-sort="file_size">File Size</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody id="video-table-body">
-            </tbody>
-        </table>
-        <div id="no-videos-message">You have no videos. Trim some videos to see them here!</div>
-        <div class="pagination">
-            <button id="prev-page">Previous</button>
-            <span id="page-info"></span>
-            <button id="next-page">Next</button>
-        </div>
+      </div>
+      <h1>My Videos</h1>
+      <div class="search-sort-container">
+        <input type="text" id="search-input" class="search-input" placeholder="Search videos..." />
+        <select id="sort-select" class="sort-select">
+          <option value="filename-asc">Name (A-Z)</option>
+          <option value="filename-desc">Name (Z-A)</option>
+          <option value="date_added-desc">Date (Newest first)</option>
+          <option value="date_added-asc">Date (Oldest first)</option>
+          <option value="file_size-desc">Size (Largest first)</option>
+          <option value="file_size-asc">Size (Smallest first)</option>
+        </select>
+      </div>
+      <table class="video-table">
+        <thead>
+          <tr>
+            <th class="sortable" data-sort="filename">File Name</th>
+            <th class="sortable" data-sort="date_added">Date Added</th>
+            <th class="sortable" data-sort="file_size">File Size</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="video-table-body"></tbody>
+      </table>
+      <div id="no-videos-message">You have no videos. Trim some videos to see them here!</div>
+      <div class="pagination">
+        <button id="prev-page">Previous</button>
+        <span id="page-info"></span>
+        <button id="next-page">Next</button>
+      </div>
     </div>
 
-    <script>
-    let videoData = JSON.parse(document.getElementById('video-container').dataset.videos);
-    let filteredVideos = [...videoData];
-    let currentPage = 1;
-    const itemsPerPage = 10;
-    let currentSort = { field: 'filename', order: 'asc' };
-
-    const noVideosMessage = document.getElementById('no-videos-message');
-    const videoTable = document.querySelector('.video-table');
-    const paginationDiv = document.querySelector('.pagination');
-
-        function formatFileSize(bytes) {
-            if (bytes === 0) return '0 Bytes';
-            const k = 1024;
-            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-        }
-
-        function renderTable() {
-        const tableBody = document.getElementById('video-table-body');
-        if (filteredVideos.length === 0) {
-            noVideosMessage.style.display = 'block';
-            videoTable.style.display = 'none';
-            paginationDiv.style.display = 'none';
-            return;
-        }
-
-        noVideosMessage.style.display = 'none';
-        videoTable.style.display = 'table';
-        paginationDiv.style.display = 'flex';
-
-        const startIndex = (currentPage - 1) * itemsPerPage;
-        const endIndex = startIndex + itemsPerPage;
-        const pageVideos = filteredVideos.slice(startIndex, endIndex);
-
-        tableBody.innerHTML = pageVideos.map(video => `
-            <tr>
-                <td>${video.filename}</td>
-                <td>${new Date(video.date_added).toLocaleString()}</td>
-                <td>${formatFileSize(video.file_size)}</td>
-                <td>
-                    <div class="action-buttons">
-                        <a href="/download_trimmed/${video.filename}" class="download-button">Download</a>
-                        <button class="delete-button" data-video-id="${video.id}">Delete</button>
-                    </div>
-                </td>
-            </tr>
-        `).join('');
-
-        updatePagination();
-        attachDeleteListeners();
-    }
-
-        function updatePagination() {
-            const pageInfo = document.getElementById('page-info');
-            const totalPages = Math.ceil(filteredVideos.length / itemsPerPage);
-            pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
-
-            document.getElementById('prev-page').disabled = currentPage === 1;
-            document.getElementById('next-page').disabled = currentPage === totalPages;
-        }
-
-        function sortVideos(field, order) {
-            filteredVideos.sort((a, b) => {
-                if (a[field] < b[field]) return order === 'asc' ? -1 : 1;
-                if (a[field] > b[field]) return order === 'asc' ? 1 : -1;
-                return 0;
-            });
-            currentSort = { field, order };
-            currentPage = 1;
-            renderTable();
-            updateSortIndicators();
-        }
-
-        function updateSortIndicators() {
-            document.querySelectorAll('th.sortable').forEach(th => {
-                th.classList.remove('asc', 'desc');
-                if (th.dataset.sort === currentSort.field) {
-                    th.classList.add(currentSort.order);
-                }
-            });
-        }
-
-        document.getElementById('search-input').addEventListener('input', (e) => {
-            const searchTerm = e.target.value.toLowerCase();
-            filteredVideos = videoData.filter(video => 
-                video.filename.toLowerCase().includes(searchTerm)
-            );
-            currentPage = 1;
-            renderTable();
-        });
-
-        document.getElementById('sort-select').addEventListener('change', (e) => {
-            const [field, order] = e.target.value.split('-');
-            sortVideos(field, order);
-        });
-
-        document.querySelectorAll('th.sortable').forEach(th => {
-            th.addEventListener('click', () => {
-                const field = th.dataset.sort;
-                const order = currentSort.field === field && currentSort.order === 'asc' ? 'desc' : 'asc';
-                sortVideos(field, order);
-            });
-        });
-
-        document.getElementById('prev-page').addEventListener('click', () => {
-            if (currentPage > 1) {
-                currentPage--;
-                renderTable();
-            }
-        });
-
-        document.getElementById('next-page').addEventListener('click', () => {
-            if (currentPage < Math.ceil(filteredVideos.length / itemsPerPage)) {
-                currentPage++;
-                renderTable();
-            }
-        });
-
-        function attachDeleteListeners() {
-            document.querySelectorAll('.delete-button').forEach(button => {
-                button.addEventListener('click', function() {
-                    const videoId = this.getAttribute('data-video-id');
-                    if (confirm('Are you sure you want to delete this video?')) {
-                        deleteVideo(videoId);
-                    }
-                });
-            });
-        }
-
-        function deleteVideo(videoId) {
-        fetch(`/delete_video/${videoId}`, { method: 'POST' })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    filteredVideos = filteredVideos.filter(video => video.id != videoId);
-                    videoData = videoData.filter(video => video.id != videoId);
-                    currentPage = 1;
-                    renderTable();
-                } else {
-                    alert('Failed to delete video. Please try again.');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('An error occurred. Please try again.');
-            });
-    }
-
-        renderTable();
-        updateSortIndicators();
-    </script>
-</body>
+    <script src="{{ url_for('static', filename='js/my_videos.js') }}"></script>
+  </body>
 </html>

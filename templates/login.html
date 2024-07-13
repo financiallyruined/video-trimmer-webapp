@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - Advanced Video Trimmer</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='auth_styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 </head>
 <body>
-    <div class="container">
+    <div class="container auth-container">
         <h1>Login</h1>
         {% with messages = get_flashed_messages() %}
             {% if messages %}

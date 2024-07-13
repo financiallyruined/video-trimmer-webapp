@@ -2,7 +2,7 @@ import os
 import time
 import threading
 import logging
-from flask import Flask, render_template, request, send_file, Response, jsonify, redirect, url_for, flash
+from flask import Flask, render_template, request, send_file, Response, jsonify, redirect, url_for, flash, abort
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -14,7 +14,7 @@ import glob
 
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'your_secret_key_here'  # Change this to a random secret key
+app.config['SECRET_KEY'] = 'your_secret_key_here'  
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
 db = SQLAlchemy(app)
 login_manager = LoginManager(app)
@@ -227,11 +227,12 @@ def trim():
     
     job_id = f"{int(time.time())}"
     output_filename = os.path.join(app.config['OUTPUT_FOLDER'], f'trimmed_{job_id}_{os.path.basename(video_path)}')
+    file_name = f'trimmed_{job_id}_{os.path.basename(video_path)}'
     
     trimming_progress[job_id] = 0
     threading.Thread(target=trim_and_combine_video, args=(video_path, output_filename, time_segments, job_id, current_user.id)).start()
     
-    return jsonify({"job_id": job_id}), 200
+    return jsonify({"job_id": job_id,"file_name": file_name}), 200
 
 def trim_and_combine_video(input_path, output_path, time_segments, job_id, user_id):
     temp_dir = os.path.join(app.config['TEMP_FOLDER'], job_id)
@@ -258,12 +259,13 @@ def trim_and_combine_video(input_path, output_path, time_segments, job_id, user_
             
             try:
                 subprocess.run(ffmpeg_command, check=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
-                progress = min(int((i + 1) / total_segments * 90), 90)  
+                progress = min(int((i + 1) / total_segments * 90), 90) 
                 update_progress(job_id, progress)
             except subprocess.CalledProcessError as e:
                 logging.error(f"Error trimming segment {i}: {e.output}")
                 raise ValueError(f"Error trimming segment {i}: {e.output}")
         
+        # Combine all segments
         concat_file = os.path.join(temp_dir, 'segments.txt')
         with open(concat_file, 'w') as f:
             for segment_file in segment_files:
@@ -281,9 +283,9 @@ def trim_and_combine_video(input_path, output_path, time_segments, job_id, user_
         try:
             update_progress(job_id, 95)  
             subprocess.run(combine_command, check=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
-            update_progress(job_id, 100) 
+            update_progress(job_id, 100)  
             
-
+            
             with app.app_context():
                 new_video = Video(filename=os.path.basename(output_path), user_id=user_id)
                 db.session.add(new_video)
@@ -297,7 +299,7 @@ def trim_and_combine_video(input_path, output_path, time_segments, job_id, user_
         trimming_progress[job_id] = -1
         raise
     finally:
-        # Clean up temporary files
+
         shutil.rmtree(temp_dir, ignore_errors=True)
 
 @app.route('/progress/<job_id>')
@@ -316,6 +318,7 @@ def progress(job_id):
 def delete_video(video_id):
     video = Video.query.get_or_404(video_id)
     
+
     if video.user_id != current_user.id:
         return jsonify({'success': False, 'message': 'Unauthorized'}), 403
 
@@ -340,14 +343,30 @@ def delete_video(video_id):
 #         return send_file(os.path.join(app.config['OUTPUT_FOLDER'], filename), as_attachment=True)
 #     return "File not found", 404
 
-@app.route('/download/<job_id>')
-def download(job_id):
-    video_path = os.path.join(app.config['OUTPUT_FOLDER'], f'trimmed_{job_id}_*')
-    matching_files = glob.glob(video_path)
-    if matching_files:
-        return send_file(matching_files[0], as_attachment=True)
+# @app.route('/download/<job_id>')
+# @login_required
+# def download(job_id):
+#     video_path = os.path.join(app.config['OUTPUT_FOLDER'], f'trimmed_{job_id}_*')
+#     matching_files = glob.glob(video_path)
+#     if matching_files:
+#         return send_file(matching_files[0], as_attachment=True)
+#     else:
+#         return "File not found", 404
+
+@app.route('/download_trimmed/<filename>')
+@login_required
+def download_trimmed(filename):
+    video = Video.query.filter_by(filename=filename, user_id=current_user.id).first()
+    
+    if not video:
+        abort(404)  
+    
+    file_path = os.path.join(app.config['OUTPUT_FOLDER'], filename)
+    
+    if os.path.exists(file_path):
+        return send_file(file_path, as_attachment=True)
     else:
-        return "File not found", 404
+        abort(404)
 
 if __name__ == '__main__':
     if not os.path.isdir(VIDEO_FOLDER):
